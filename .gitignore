@@ -23,4 +23,20 @@ assets/shared
 .context
 .cursorrules
 .env
+.env.*
+!.env.example
 context/
+
+# Local diagnostics, private fixtures, and credentials
+/work/
+/outputs/
+/.local/
+/diagnostics/
+/private-fixtures/
+/privacy-reports/
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+*.mobileprovision

@@ -7,6 +7,7 @@ import { Settings } from './types/types';
 import { debugLog } from './utils/debug';
 import { incrementStat } from './utils/storage-utils';
 import { hasStoredHighlights } from './utils/url-utils';
+import { isFeishuDocumentUrl, readFeishuPageSnapshot } from './utils/feishu-page-snapshot';
 
 const YOUTUBE_EMBED_RULE_ID = 9001;
 const YOUTUBE_INNERTUBE_RULE_ID = 9002;
@@ -397,6 +398,24 @@ browser.runtime.onMessage.addListener((request: unknown) => {
 browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime.MessageSender, sendResponse: (response?: any) => void): true | undefined => {
 	if (typeof request === 'object' && request !== null) {
 		const typedRequest = request as { action: string; isActive?: boolean; hasHighlights?: boolean; tabId?: number; text?: string; section?: string; readerUrl?: string; url?: string };
+
+		if (typedRequest.action === 'getFeishuSnapshot') {
+			const tabId = sender.tab?.id;
+			const url = typedRequest.url;
+			if (!tabId || sender.frameId !== 0 || sender.id !== browser.runtime.id || !url || !isFeishuDocumentUrl(url) || sender.url !== url) {
+				sendResponse({ error: '只能提取当前打开的飞书文档。' });
+				return true;
+			}
+			(async () => {
+				if (!browser.scripting) return { error: '当前浏览器不支持文档提取，请使用 Chrome。' };
+				const results = await browser.scripting.executeScript({
+					target: { tabId, frameIds: [0] }, world: 'MAIN',
+					func: readFeishuPageSnapshot, args: [url],
+				});
+				return results[0]?.result || { error: '文档提取器没有返回数据。' };
+			})().then(sendResponse).catch(() => sendResponse({ error: '文档提取失败，请刷新页面后重试。' }));
+			return true;
+		}
 
 		if (typedRequest.action === 'loadContentScriptForHighlights') {
 			const tabId = sender.tab?.id;

@@ -105,6 +105,9 @@ export async function extractPageContent(tabId: number): Promise<ContentResponse
 	try {
 		return await sendExtractRequest(tabId);
 	} catch (firstError) {
+		if (firstError instanceof Error && firstError.message.startsWith('飞书剪藏：')) {
+			throw firstError;
+		}
 		// First attempt failed — this commonly happens on Safari after an
 		// extension update when a zombie content script (runtime invalidated)
 		// responded to ping, preventing re-injection. Force a fresh injection
@@ -118,6 +121,9 @@ export async function extractPageContent(tabId: number): Promise<ContentResponse
 		try {
 			return await sendExtractRequest(tabId);
 		} catch (retryError) {
+			if (retryError instanceof Error && retryError.message.startsWith('飞书剪藏：')) {
+				throw retryError;
+			}
 			console.error('[Obsidian Clipper] Extraction failed after retry:', retryError);
 			throw new Error('Web Clipper was not able to start. Please try reloading the page.');
 		}

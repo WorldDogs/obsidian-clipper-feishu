@@ -1,4 +1,3 @@
-import Defuddle from 'defuddle/full';
 import browser from './browser-polyfill';
 import { detectBrowser } from './browser-detection';
 import { flattenShadowDom as flattenShadowDomUtil } from './flatten-shadow-dom';
@@ -29,7 +28,8 @@ import { getMessage, initializeI18n } from './i18n';
 import { getFontCss, isFontAvailable } from './font-utils';
 import { createMarkdownContent } from 'defuddle/full';
 import { saveFile } from './file-utils';
-import { parseForClip } from './clip-utils';
+import { parseForClipAsync } from './clip-utils';
+import { isFeishuDocumentUrl } from './feishu-extractor';
 import { updateSidebarWidth, addResizeHandle, cleanupResizeHandlers } from './iframe-resize';
 import { setElementHTML, setSVGChildren, serializeChildren } from './dom-utils';
 
@@ -874,8 +874,7 @@ export class Reader {
 			return pre;
 		}
 
-		const defuddle = new Defuddle(doc, { url: doc.URL });
-		const defuddled = await defuddle.parseAsync();
+		const defuddled = await parseForClipAsync(doc);
 
 		return {
 			content: defuddled.content,
@@ -884,7 +883,8 @@ export class Reader {
 			published: defuddled.published,
 			domain: getDomain(doc.URL),
 			wordCount: defuddled.wordCount,
-			parseTime: defuddled.parseTime
+			parseTime: defuddled.parseTime,
+			extractorType: defuddled.extractorType
 		};
 	}
 
@@ -2036,6 +2036,9 @@ export class Reader {
 			docClone.getElementById('obsidian-clipper-container')?.remove();
 			Object.defineProperty(docClone, 'URL', { value: doc.URL, configurable: true });
 			const contentPromise = this.extractContent(docClone);
+			// Preserve the live Feishu editor until the adapter has captured
+			// its complete model; cleanup removes the editor and its scripts.
+			if (isFeishuDocumentUrl(doc.URL)) await contentPromise;
 
 			// Use view transition for smooth crossfade into reader mode
 			// Skip on the reader page where we're already in reader context
@@ -2777,9 +2780,9 @@ export class Reader {
 		container.addEventListener('animationend', () => hl().repositionHighlights(), { once: true });
 	}
 
-	static copyMarkdownOnReaderPage(doc: Document): void {
+	static async copyMarkdownOnReaderPage(doc: Document): Promise<void> {
 		try {
-			const defuddled = parseForClip(doc);
+			const defuddled = await parseForClipAsync(doc);
 			const markdown = createMarkdownContent(defuddled.content, doc.URL);
 			navigator.clipboard.writeText(markdown).catch(() => {
 				const textArea = doc.createElement('textarea');
@@ -2796,7 +2799,7 @@ export class Reader {
 
 	static async saveMarkdownOnReaderPage(doc: Document): Promise<void> {
 		try {
-			const defuddled = parseForClip(doc);
+			const defuddled = await parseForClipAsync(doc);
 			const markdown = createMarkdownContent(defuddled.content, doc.URL);
 			const title = defuddled.title || doc.title || 'Untitled';
 			const fileName = title.replace(/[/\\?%*:|"<>]/g, '-');

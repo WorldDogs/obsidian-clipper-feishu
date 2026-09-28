@@ -1,7 +1,41 @@
 // @vitest-environment jsdom
-import { describe, test, expect } from 'vitest';
-import { processHighlights } from './content-extractor';
+import { afterEach, describe, test, expect, vi } from 'vitest';
+import { extractPageContent, processHighlights } from './content-extractor';
 import { TextHighlightData } from './highlighter';
+import browser from './browser-polyfill';
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('Feishu extraction failures', () => {
+	test('shows the actionable extraction error without re-injecting the content script', async () => {
+		const error = '飞书剪藏：文档尚未加载完整，请稍后重试。';
+		const send = vi.spyOn(browser.runtime, 'sendMessage').mockResolvedValue({ success: false, error });
+		await expect(extractPageContent(42)).rejects.toThrow(error);
+		expect(send).toHaveBeenCalledTimes(1);
+		expect(send).toHaveBeenCalledWith({ action: 'sendMessageToTab', tabId: 42, message: { action: 'getPageContent' } });
+	});
+
+	test('preserves a Feishu error if stale content-script recovery reaches the adapter', async () => {
+		const error = '飞书剪藏：请先在浏览器中打开并加载文档。';
+		const send = vi.spyOn(browser.runtime, 'sendMessage')
+			.mockRejectedValueOnce(new Error('Extension context invalidated'))
+			.mockResolvedValueOnce({})
+			.mockResolvedValueOnce({ success: false, error });
+		await expect(extractPageContent(42)).rejects.toThrow(error);
+		expect(send).toHaveBeenNthCalledWith(2, { action: 'forceInjectContentScript', tabId: 42 });
+		expect(send).toHaveBeenCalledTimes(3);
+	});
+
+	test('still recovers stale content scripts on ordinary pages', async () => {
+		const article = { content: '<p>Recovered article</p>', highlights: [] };
+		const send = vi.spyOn(browser.runtime, 'sendMessage')
+			.mockRejectedValueOnce(new Error('Extension context invalidated'))
+			.mockResolvedValueOnce({})
+			.mockResolvedValueOnce(article);
+		expect(await extractPageContent(42)).toEqual(article);
+		expect(send).toHaveBeenCalledTimes(3);
+	});
+});
 
 // Default settings already use highlighterEnabled + 'highlight-inline', the
 // behavior these tests exercise.

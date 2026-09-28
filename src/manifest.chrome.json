@@ -1,10 +1,11 @@
 {
 	"manifest_version": 3,
 	"default_locale": "en",
-	"name": "Obsidian Web Clipper",
+	"name": "Web Clipper — 飞书增强（本地）",
 	"homepage_url": "https://obsidian.md/",
-	"version": "1.7.1",
-	"description": "Save and highlight web pages in a private and durable format that you can access offline. The official extension for Obsidian.",
+	"version": "1.7.1.1",
+	"version_name": "1.7.1 + Feishu local preview 1",
+	"description": "Local fork of Obsidian Web Clipper. Extracts Feishu document blocks beyond the visible viewport and reports incomplete content.",
 	"permissions": [
 		"activeTab",
 		"clipboardWrite",

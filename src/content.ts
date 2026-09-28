@@ -4,14 +4,14 @@ import { removeExistingHighlights } from './utils/highlighter-overlays';
 import { loadSettings, generalSettings } from './utils/storage-utils';
 import { getDomain } from './utils/string-utils';
 import { extractContentBySelector as extractContentBySelectorShared } from './utils/shared';
-import Defuddle from 'defuddle';
 import { createMarkdownContent } from 'defuddle/full';
 import { flattenShadowDom } from './utils/flatten-shadow-dom';
 import { serializeChildren } from './utils/dom-utils';
 import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';
 import { updateSidebarWidth, addResizeHandle, cleanupResizeHandlers } from './utils/iframe-resize';
-import { parseForClip } from './utils/clip-utils';
+import { parseForClipAsync } from './utils/clip-utils';
+import { isFeishuDocumentUrl } from './utils/feishu-extractor';
 
 declare global {
 	interface Window {
@@ -153,9 +153,9 @@ declare global {
 		}
 
 		if (request.action === "copyMarkdownToClipboard") {
-			flattenShadowDom(document).then(() => {
+			flattenShadowDom(document).then(async () => {
 				try {
-					const defuddled = parseForClip(document);
+					const defuddled = await parseForClipAsync(document);
 
 					// Convert HTML content to markdown
 					const markdown = createMarkdownContent(defuddled.content, document.URL);
@@ -180,7 +180,7 @@ declare global {
 		if (request.action === "saveMarkdownToFile") {
 			flattenShadowDom(document).then(async () => {
 				try {
-					const defuddled = parseForClip(document);
+					const defuddled = await parseForClipAsync(document);
 					const markdown = createMarkdownContent(defuddled.content, document.URL);
 					const title = defuddled.title || document.title || 'Untitled';
 					const fileName = title.replace(/[/\\?%*:|"<>]/g, '-');
@@ -213,22 +213,19 @@ declare global {
 					selectedHtml = serializeChildren(div);
 				}
 
-				// Use parseAsync to ensure async variables like {{transcript}} are available.
-				// If it hangs (e.g. another extension has corrupted fetch), fall back to sync parse.
-				const defuddle = new Defuddle(document, { url: document.URL });
-				const parseTimeout = new Promise<never>((_, reject) =>
-					setTimeout(() => reject(new Error('parseAsync timeout')), 8000)
-				);
-				const defuddled = await Promise.race([defuddle.parseAsync(), parseTimeout])
-					.catch(() => defuddle.parse());
+				const defuddled = await parseForClipAsync(document);
 				const extractedContent: { [key: string]: string } = {
 					...defuddled.variables,
 				};
 
 				// Create a new DOMParser
 				const parser = new DOMParser();
-				// Parse the document's HTML
-				const doc = parser.parseFromString(document.documentElement.outerHTML, 'text/html');
+				// Feishu only mounts a viewport-sized portion of its document in
+				// the DOM. Template HTML must use the complete extracted body too.
+				const sourceHtml = isFeishuDocumentUrl(document.URL)
+					? defuddled.content
+					: document.documentElement.outerHTML;
+				const doc = parser.parseFromString(sourceHtml, 'text/html');
 
 				// Remove all script and style elements
 				doc.querySelectorAll('script, style').forEach(el => el.remove());

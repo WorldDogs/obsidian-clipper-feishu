@@ -1,113 +1,77 @@
-Obsidian Web Clipper helps you highlight and capture the web in your favorite browser. Anything you save is stored as durable Markdown files that you can read offline, and preserve for the long term.
+# Web Clipper — 飞书文档适配版
 
-- **[Download Web Clipper](https://obsidian.md/clipper)**
-- **[Documentation](https://help.obsidian.md/web-clipper)**
-- **[Troubleshooting](https://help.obsidian.md/web-clipper/troubleshoot)**
+基于 **[Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper)** 的社区修改版，为飞书长文档增加专用提取流程，解决只剪藏到当前屏幕附近内容的问题。
 
-## Get started
+原版由 **Obsidian** 开发，提供网页剪藏、Markdown 转换、模板、高亮和阅读模式等功能。本仓库保留上游代码与提交历史，在此基础上增加飞书文档适配；**不是 Obsidian 官方发行版，也不是飞书官方插件**。
 
-Install the extension by downloading it from the official directory for your browser:
+- 上游项目：[obsidianmd/obsidian-clipper](https://github.com/obsidianmd/obsidian-clipper)
+- 开发基线：上游 1.7.1，提交 [`6d56d61`](https://github.com/obsidianmd/obsidian-clipper/commit/6d56d618b00bd970aa738d6a7a61edee27783e81)
+- 当前 Chrome 扩展版本：`1.7.1.1`
+- 浏览器显示名称：`Web Clipper — 飞书增强（本地）`
+- 原版使用文档：[Obsidian Web Clipper Help](https://help.obsidian.md/web-clipper)
 
-- **[Chrome Web Store](https://chromewebstore.google.com/detail/obsidian-web-clipper/cnjifjpddelmedmihgijeibhnjfabmlf)** for Chrome, Brave, Arc, Orion, and other Chromium-based browsers.
-- **[Firefox Add-Ons](https://addons.mozilla.org/en-US/firefox/addon/web-clipper-obsidian/)** for Firefox and Firefox Mobile.
-- **[Safari Extensions](https://apps.apple.com/us/app/obsidian-web-clipper/id6720708363)** for macOS, iOS, and iPadOS.
-- **[Edge Add-Ons](https://microsoftedge.microsoft.com/addons/detail/obsidian-web-clipper/eigdjhmgnaaeaonimdklocfekkaanfme)** for Microsoft Edge.
+## 为什么需要飞书适配
 
-## Use the extension
+飞书长文档采用按视口渲染：浏览器页面中通常只挂载当前可见位置附近的段落。直接解析网页 DOM，可能遗漏后续正文，也可能混入侧栏、评论等界面文字。
 
-Documentation is available on the [Obsidian Help site](https://help.obsidian.md/web-clipper), which covers how to use [highlighting](https://help.obsidian.md/web-clipper/highlight), [templates](https://help.obsidian.md/web-clipper/templates), [variables](https://help.obsidian.md/web-clipper/variables), [filters](https://help.obsidian.md/web-clipper/filters), and more.
+本版从**当前已打开、可访问的文档模型**读取可达块树，按原文顺序生成内容，再交给原有的 Markdown 转换流程。普通网页继续使用上游 Defuddle 提取流程。
 
-## Contribute
+## 我们做了哪些改动
 
-### Documentation
+- 增加飞书 / Lark 文档路由识别，覆盖 `feishu.cn`、`larksuite.com` 下的 `/wiki/`、`/docx/`、`/docs/` 路径。
+- 从页面模型提取正文，保留标题、段落、列表、富文本、引用、分隔线和内嵌文档链接。
+- 剪藏弹窗、复制、下载和阅读模式接入同一提取流程；阅读模式先读取模型，再清理页面。
+- 普通正文块缺失时明确报错，避免把首屏内容当作完整正文保存。
+- 图片、同步引用或不支持的格式未恢复时，在正文中保留提示及原文位置。
+- 增加页面来源校验、超时、循环保护，以及合成数据回归测试。
 
-User documentation is maintained in the [`en/Obsidian Web Clipper` directory of obsidian-help](https://github.com/obsidianmd/obsidian-help/tree/master/en/Obsidian%20Web%20Clipper).
+## 支持范围与限制
 
-### Translations
+目前已在 **Chrome** 中完成真实飞书长文档的提取与剪藏预览验证，确认能读取未挂载在页面 DOM 中的正文。保存到 Obsidian 的最终写入流程未作为此次飞书适配的端到端验收项目。Lark 域名和路由有识别测试；尚未用真实 Lark、Firefox 或 Safari 会话验证适配效果。
 
-You can help translate Web Clipper into your language. Submit your translation via pull request using the format found in the [/_locales](/src/_locales) folder.
+这不代表所有附件都能完整离线保存：
 
-### Features and bug fixes
+- 图片目前只保留页面已提供的 HTTPS 地址；未渲染图片可能没有可用地址，已有地址也可能需要登录或过期。
+- 跨文档同步引用只有来源数据已经在当前模型中时才能完整恢复，否则保留可见文字或原文链接并提示。
+- 表格、嵌入附件等尚未适配的块类型会提示不完整。
+- 飞书内部页面模型不是稳定的公开接口，站点更新后可能需要调整。
+- 本版不绕过访问权限，也不调用接口抓取其他文档。
 
-See the [help wanted](https://github.com/obsidianmd/obsidian-clipper/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) tag for issues where contributions are welcome.
+使用时请检查正文开头的「剪藏提示」。更多实现说明见 [FEISHU.md](FEISHU.md)。
 
-## Roadmap
+## 本地构建与安装
 
-In no particular order:
+准备支持项目依赖的 Node.js 与 npm，然后在项目目录执行：
 
-- [ ] Annotate highlights
-- [ ] Template directory
-- [ ] Sync settings across browsers
-- [x] A separate icon for Web Clipper (1.6.3)
-- [x] Template validation (1.1.0)
-- [x] Template logic (if/for)  (1.1.0)
-- [x] Save images locally ([Obsidian 1.8.0](https://obsidian.md/changelog/2024-12-18-desktop-v1.8.0/))
-- [x] Translate UI into more languages — help is welcomed
-
-## Developers
-
-To build the extension:
-
-```
-npm run build
+```sh
+npm ci
+npm run build:chrome
 ```
 
-This will create three directories:
-- `dist/` for the Chromium version
-- `dist_firefox/` for the Firefox version
-- `dist_safari/` for the Safari version
+1. 在 Chrome 打开 `chrome://extensions`，开启「开发者模式」。
+2. 点击「加载已解压的扩展程序」，选择本项目生成的 `dist` 文件夹。
+3. 刷新已打开的飞书文档，等待页面加载完成。
+4. 在扩展菜单选择 **Web Clipper — 飞书增强（本地）**，核对预览内容和剪藏提示后使用。
 
-### Install the extension locally
+新扩展不会自动继承原版的仓库配置和模板，可以从原版导出设置，再导入本版。请保留加载的 `dist` 目录；更新源码并重新构建后，在扩展管理页重新加载本扩展。
 
-For Chromium browsers, such as Chrome, Brave, Edge, and Arc:
+## 测试
 
-1. Open your browser and navigate to `chrome://extensions`
-2. Enable **Developer mode**
-3. Click **Load unpacked** and select the `dist` directory
-
-For Firefox:
-
-1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on**
-3. Navigate to the `dist_firefox` directory and select the `manifest.json` file
-
-If you want to run the extension permanently you can do so with the Nightly or Developer versions of Firefox.
-
-1. Type `about:config` in the URL bar
-2. In the Search box type `xpinstall.signatures.required`
-3. Double-click the preference, or right-click and select "Toggle", to set it to `false`.
-4. Go to `about:addons` > gear icon > **Install Add-on From File…**
-
-For iOS Simulator testing on macOS:
-
-1. Run `npm run build` to build the extension
-2. Open `xcode/Obsidian Web Clipper/Obsidian Web Clipper.xcodeproj` in Xcode
-3. Select the **Obsidian Web Clipper (iOS)** scheme from the scheme selector
-4. Choose an iOS Simulator device and click **Run** to build and launch the app
-5. Once the app is running on the simulator, open **Safari**
-6. Navigate to a webpage and tap the **Extensions** button in Safari to access the Web Clipper extension
-
-### Run tests
-
-```
-npm test
+```sh
+npx tsc --noEmit --module es2020
+TZ=America/Los_Angeles npm test
 ```
 
-Or run in watch mode during development:
+当前回归测试共 254 项。指定时区是为了与上游 YouTube 日期测试的固定时区预期一致，不是飞书适配的运行要求。Chrome 构建仍会出现上游已有的 bundle 体积警告。
 
-```
-npm run test:watch
-```
+## 隐私与权限
 
-## Third-party libraries
+新增的飞书适配流程在本地读取当前页面模型，不读取 Cookie 和账号凭据，不主动请求其他文档，也不把提取内容发送给新增的远端服务。扩展整体保留上游权限和可选功能；例如启用上游 AI 解释功能时，仍应自行确认所配置服务的数据处理方式。图片链接也可能在查看内容时触发浏览器访问原站。
 
-- [webextension-polyfill](https://github.com/mozilla/webextension-polyfill) for browser compatibility
-- [defuddle](https://github.com/kepano/defuddle) for content extraction and Markdown conversion
-- [dayjs](https://github.com/iamkun/dayjs) for date parsing and formatting
-- [lz-string](https://github.com/pieroxy/lz-string) to compress templates to reduce storage space
-- [lucide](https://github.com/lucide-icons/lucide) for icons
-- [dompurify](https://github.com/cure53/DOMPurify) for sanitizing HTML
+仓库中的新增测试使用合成内容与示例域名，不包含真实文档快照、文章正文、私人文档链接、浏览器数据或个人配置。本地诊断样本、构建产物和凭据文件不应提交。
 
-## License
+## 致谢与许可
 
-Obsidian Web Clipper source code is open source under the MIT License. All trademarks, icons, marketing copy, and other marketing assets are excluded from that license.
+感谢 Obsidian 团队和 [上游贡献者](https://github.com/obsidianmd/obsidian-clipper/graphs/contributors)。网页提取和 Markdown 转换继续使用 [Defuddle](https://github.com/kepano/defuddle)，其余依赖见 `package.json`。
+
+源码沿用 [MIT License](LICENSE)，保留原有版权声明。本仓库新增的飞书适配代码也以 MIT License 提供。上游说明中的商标、图标、宣传文案和其他营销素材不包含在 MIT 许可范围内；保留上游来源信息不代表获得品牌授权或官方背书。本仓库未发布浏览器商店版本。
